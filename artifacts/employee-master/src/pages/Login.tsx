@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Loader2 } from "lucide-react";
-import lightLogo from "@assets/logo_1773643382976.jpg";
 
 export default function Login() {
   const [email, setEmail] = useState("ashish.vaghela@lightfinance.com");
@@ -51,7 +50,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-t from-sidebar via-sidebar/80 to-transparent" />
         <div className="relative z-10 flex flex-col justify-end p-16 w-full max-w-2xl">
           <div className="mb-8">
-            <img src={lightLogo} alt="Light Finance" className="h-16 w-auto object-contain rounded-2xl bg-white px-3 py-2 shadow-2xl" />
+            <span className="text-2xl font-bold text-white tracking-tight">Employee Master</span>
           </div>
           <h1 className="text-5xl font-display font-bold text-white mb-6 leading-tight">
             Employee <br/>Master System
@@ -68,7 +67,7 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="text-center lg:text-left">
             <div className="lg:hidden mx-auto mb-6 w-fit">
-              <img src={lightLogo} alt="Light Finance" className="h-12 w-auto object-contain rounded-xl bg-white px-2 py-1.5 shadow-md" />
+              <span className="text-xl font-bold text-foreground tracking-tight">Employee Master</span>
             </div>
             <h2 className="text-3xl font-display font-bold text-foreground">Sign in</h2>
             <p className="mt-2 text-muted-foreground">Enter your credentials to access the portal</p>

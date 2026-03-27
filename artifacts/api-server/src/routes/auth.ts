@@ -31,7 +31,7 @@ router.post("/login", async (req, res) => {
       userEmail: user.email,
       action: "LOGIN",
       eventType: "User Login",
-      entity: "auth",
+      entity: "Authentication",
       entityId: null,
       description: `User login: ${user.email}`,
       browser: parseBrowser(ua),

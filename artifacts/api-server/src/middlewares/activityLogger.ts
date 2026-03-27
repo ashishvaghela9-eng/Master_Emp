@@ -1,6 +1,23 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, activityLogsTable } from "@workspace/db";
+import { db, activityLogsTable, serviceDefinitionsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+
+const serviceNameCache = new Map<string, string>();
+
+async function resolveServiceName(slug: string): Promise<string | null> {
+  if (serviceNameCache.has(slug)) return serviceNameCache.get(slug)!;
+  try {
+    const [def] = await db.select({ name: serviceDefinitionsTable.name })
+      .from(serviceDefinitionsTable)
+      .where(eq(serviceDefinitionsTable.slug, slug));
+    if (def?.name) {
+      serviceNameCache.set(slug, def.name);
+      return def.name;
+    }
+  } catch {}
+  return null;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "employee-master-secret-2024";
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -160,29 +177,42 @@ export function activityLogger(req: Request, res: Response, next: NextFunction) 
 
   const originalSend = res.send.bind(res);
   res.send = function (responseBody?: any) {
+    const result = originalSend(responseBody);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const { entity, entityId, subEntity } = getEntityFromPath(req.path);
       const action = getActionLabel(req.method, req.path);
-      const eventType = getEventType(action, entity);
-      const module = getModuleName(entity);
-      const description = buildDescription(action, entity, entityId, subEntity, body);
 
-      db.insert(activityLogsTable)
-        .values({
+      (async () => {
+        let module = getModuleName(entity);
+
+        if (entity === "services") {
+          const parts = req.path.split("/").filter(Boolean);
+          if (parts[0] === "api") parts.shift();
+          const slug = parts[1];
+          if (slug) {
+            const serviceName = await resolveServiceName(slug);
+            if (serviceName) module = serviceName;
+          }
+        }
+
+        const eventType = getEventType(action, entity);
+        const description = buildDescription(action, entity, entityId, subEntity, body);
+
+        await db.insert(activityLogsTable).values({
           userId: userId ?? null,
           userEmail: userEmail ?? null,
           action,
-          eventType,
+          eventType: eventType.replace(/\bServices\b/, module),
           entity: module,
           entityId: entityId ?? null,
           description,
           browser,
           device,
           browserIp,
-        })
-        .catch(console.error);
+        });
+      })().catch(console.error);
     }
-    return originalSend(responseBody);
+    return result;
   };
 
   next();
