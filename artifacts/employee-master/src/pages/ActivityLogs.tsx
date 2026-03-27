@@ -27,31 +27,9 @@ interface ActivityLog {
 const token = () => localStorage.getItem("auth_token");
 const authHeaders = () => ({ Authorization: `Bearer ${token()}` });
 
-const MODULE_LABELS: Record<string, string> = {
-  employees:           "Employee Master",
-  employee:            "Employee Master",
-  config:              "Configuration",
-  "system-users":      "System Users",
-  "system_users":      "System Users",
-  auth:                "Authentication",
-  "activity-logs":     "Activity Logs",
-  "service-definitions": "Services Config",
-  branch_file_station: "Branch File Station",
-  assetcuez:           "Assetcuez",
-  vpn_users:           "VPN",
-  jira_users:          "Jira",
-  mailvault_users:     "MailVault",
-  ftp_users:           "FTP",
-  acronis_records:     "Acronis Backup",
-  tata_tele_records:   "Tata Tele",
-  dashboard:           "Dashboard",
-  reports:             "Reports",
-};
-
 function getModuleLabel(entity: string): string {
   if (!entity) return "—";
-  const lower = entity.toLowerCase().replace(/-/g, "_");
-  return MODULE_LABELS[entity] || MODULE_LABELS[lower] || entity.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return entity;
 }
 
 async function fetchActivityLogs(params: Record<string, string>): Promise<ActivityLog[]> {
