@@ -7,6 +7,54 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      [id*="replit"],
+      [class*="replit"],
+      [id*="badge"],
+      a[href*="replit.com"],
+      iframe[src*="replit.com"],
+      div[data-cy*="badge"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+    </style>
+    <script>
+      (function () {
+        function removeBadge(node) {
+          if (!node || node.nodeType !== 1) return;
+          var id = node.id || "";
+          var cls = node.className || "";
+          var href = node.href || "";
+          var src = node.src || "";
+          if (
+            /replit/i.test(id) ||
+            /replit/i.test(cls) ||
+            /replit\.com/i.test(href) ||
+            /replit\.com/i.test(src) ||
+            /badge/i.test(id) ||
+            (node.tagName === "A" && /replit/i.test(node.textContent))
+          ) {
+            node.style.cssText = "display:none!important;visibility:hidden!important;opacity:0!important";
+          }
+          node.querySelectorAll && node.querySelectorAll(
+            '[id*="replit"],[class*="replit"],a[href*="replit.com"],iframe[src*="replit.com"],[id*="badge"]'
+          ).forEach(function (el) {
+            el.style.cssText = "display:none!important;visibility:hidden!important;opacity:0!important";
+          });
+        }
+        var observer = new MutationObserver(function (mutations) {
+          mutations.forEach(function (m) {
+            m.addedNodes.forEach(removeBadge);
+          });
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+          removeBadge(document.body);
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
