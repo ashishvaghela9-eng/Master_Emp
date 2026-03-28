@@ -486,10 +486,10 @@ export default function ServicesConfig() {
     queryFn: fetchServiceDefs,
   });
 
-  // Tab 1: standalone services (no table, not built-in)
-  const standaloneServices = services.filter(s => !s.isBuiltIn && !s.hasTable);
-  // Tab 2: ALL table-backed services — built-ins + custom with table
-  const tableServices = services.filter(s => s.isBuiltIn || s.hasTable);
+  // Tab 1: ALL services without a table — user-created standalone + access-only built-ins
+  const standaloneServices = services.filter(s => !s.hasTable);
+  // Tab 2: ONLY table-backed services — built-ins with DB tables + custom table services
+  const tableServices = services.filter(s => s.hasTable);
 
   const currentList = activeTab === "standalone" ? standaloneServices : tableServices;
   const selectedSvc = services.find(s => s.id === selectedId) || null;
@@ -597,7 +597,11 @@ export default function ServicesConfig() {
                 {activeTab === "standalone" && <p className="text-xs text-muted-foreground">Or create a new service using the button on the left</p>}
               </div>
             ) : activeTab === "standalone" ? (
-              <StandaloneServicePanel svc={selectedSvc} onDeleteService={() => setDeleteConfirm(selectedSvc)} />
+              selectedSvc.isBuiltIn ? (
+                <AccessOnlyPanel svc={selectedSvc} />
+              ) : (
+                <StandaloneServicePanel svc={selectedSvc} onDeleteService={() => setDeleteConfirm(selectedSvc)} />
+              )
             ) : (
               <TableServicePanel svc={selectedSvc} onDeleteService={!selectedSvc.isBuiltIn ? () => setDeleteConfirm(selectedSvc) : undefined} />
             )}
