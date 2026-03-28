@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, ChevronRight, Server, Shield, Database, Loader2, Info, X, ArrowUp, ArrowDown, Table2, Pencil } from "lucide-react";
+import { Plus, Trash2, ChevronRight, Server, Shield, Database, Loader2, Info, X, ArrowUp, ArrowDown, Table2, Pencil, CheckSquare } from "lucide-react";
 
 const token = () => localStorage.getItem("auth_token");
 const authHeaders = () => ({ Authorization: `Bearer ${token()}` });
@@ -363,6 +363,27 @@ function RecordsPanel({ svc }: { svc: ServiceDefinition }) {
   );
 }
 
+// ─── Access-only panel (no dedicated DB table) ───────────────────────────────
+function AccessOnlyPanel({ svc }: { svc: ServiceDefinition }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center gap-4 p-10">
+      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+        <CheckSquare className="w-7 h-7 text-blue-500" />
+      </div>
+      <div className="space-y-2 max-w-sm">
+        <p className="font-semibold text-base">{svc.name}</p>
+        <p className="text-sm text-muted-foreground">
+          This service is tracked as an <strong>access toggle</strong> on employee profiles (visible in Add Employee, Bulk Upload, and Reports).
+        </p>
+        <p className="text-sm text-muted-foreground">
+          It does not have a dedicated database table, so records management is not applicable.
+        </p>
+      </div>
+      <Badge variant="outline" className="text-blue-600 border-blue-200">Access-tracked only</Badge>
+    </div>
+  );
+}
+
 // ─── Right panel for "Create Service with Table" tab ─────────────────────────
 function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; onDeleteService?: () => void }) {
   const [activeInner, setActiveInner] = useState<"entries" | "fields">("entries");
@@ -390,25 +411,29 @@ function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; o
         {svc.isBuiltIn && <><span className="text-border">·</span><Info className="w-3.5 h-3.5 text-amber-500" /><span className="text-amber-600">Built-in service</span></>}
       </div>
 
-      {/* Inner tabs */}
-      <div className="px-5 pt-3 pb-0 border-b flex gap-4">
-        <button
-          onClick={() => setActiveInner("entries")}
-          className={`pb-2.5 text-sm font-medium border-b-2 transition-colors ${activeInner === "entries" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Entries
-        </button>
-        <button
-          onClick={() => setActiveInner("fields")}
-          className={`pb-2.5 text-sm font-medium border-b-2 transition-colors ${activeInner === "fields" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Fields
-        </button>
-      </div>
+      {/* Inner tabs — only for table-backed services */}
+      {svc.hasTable && (
+        <div className="px-5 pt-3 pb-0 border-b flex gap-4">
+          <button
+            onClick={() => setActiveInner("entries")}
+            className={`pb-2.5 text-sm font-medium border-b-2 transition-colors ${activeInner === "entries" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            Entries
+          </button>
+          <button
+            onClick={() => setActiveInner("fields")}
+            className={`pb-2.5 text-sm font-medium border-b-2 transition-colors ${activeInner === "fields" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            Fields
+          </button>
+        </div>
+      )}
 
       {/* Inner content */}
       <div className="flex-1 overflow-hidden p-5">
-        {activeInner === "entries" ? (
+        {!svc.hasTable ? (
+          <AccessOnlyPanel svc={svc} />
+        ) : activeInner === "entries" ? (
           <RecordsPanel svc={svc} />
         ) : (
           <FieldsPanel svc={svc} onDeleteService={onDeleteService} />
@@ -474,6 +499,7 @@ export default function ServicesConfig() {
     mutationFn: createService,
     onSuccess: (svc) => {
       qc.invalidateQueries({ queryKey: ["/api/service-definitions"] });
+      qc.invalidateQueries({ queryKey: ["/api/config"] });
       toast({ title: "Service created", description: `${svc.name} has been created.` });
       setCreateOpen(false); setNewSvcName(""); setNewSvcFields([{ ...EMPTY_FIELD }]); setSelectedId(svc.id);
     },
@@ -484,6 +510,7 @@ export default function ServicesConfig() {
     mutationFn: (id: number) => deleteService(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/service-definitions"] });
+      qc.invalidateQueries({ queryKey: ["/api/config"] });
       toast({ title: "Service deleted" }); setDeleteConfirm(null); setSelectedId(null);
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
