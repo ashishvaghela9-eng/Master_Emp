@@ -27,9 +27,42 @@ interface ActivityLog {
 const token = () => localStorage.getItem("auth_token");
 const authHeaders = () => ({ Authorization: `Bearer ${token()}` });
 
+const MODULE_NAME_MAP: Record<string, string> = {
+  employees:              "Employee Master",
+  employee:               "Employee Master",
+  config:                 "Configuration",
+  "system-users":         "System Users",
+  system_users:           "System Users",
+  auth:                   "Authentication",
+  "activity-logs":        "Activity Logs",
+  activity_logs:          "Activity Logs",
+  "service-definitions":  "Services",
+  service_definitions:    "Services",
+  services:               "Services",
+  "branch-file-station":  "Branch File Station",
+  branch_file_station:    "Branch File Station",
+  assetcuez:              "Assetcuez",
+  vpn:                    "VPN",
+  vpn_users:              "VPN",
+  jira:                   "Jira",
+  jira_users:             "Jira",
+  mailvault:              "MailVault",
+  mailvault_users:        "MailVault",
+  ftp:                    "FTP",
+  ftp_users:              "FTP",
+  acronis:                "Acronis Backup",
+  acronis_records:        "Acronis Backup",
+  "tata-tele":            "Tata Tele",
+  tata_tele:              "Tata Tele",
+  tata_tele_records:      "Tata Tele",
+  dashboard:              "Dashboard",
+  reports:                "Reports",
+};
+
 function getModuleLabel(entity: string): string {
   if (!entity) return "—";
-  return entity;
+  const lower = entity.toLowerCase();
+  return MODULE_NAME_MAP[lower] || MODULE_NAME_MAP[entity] || entity;
 }
 
 async function fetchActivityLogs(params: Record<string, string>): Promise<ActivityLog[]> {

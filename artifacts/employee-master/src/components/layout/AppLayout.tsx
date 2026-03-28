@@ -67,7 +67,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   ];
   const isServiceActive = allServiceHrefs.some(href => location === href);
   const isSettingsActive = settingsNavItems.some(item => location === item.href);
-  const [servicesOpen, setServicesOpen] = useState(isServiceActive);
+  const [servicesOpen, setServicesOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
   return (

@@ -49,6 +49,12 @@ async function createService(data: { name: string; fields: NewField[]; createTab
   if (!res.ok) throw new Error(json.error || "Failed to create service");
   return json;
 }
+async function updateServiceName(id: number, name: string): Promise<ServiceDefinition> {
+  const res = await fetch(`/api/service-definitions/${id}`, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ name }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Failed to update service");
+  return json;
+}
 async function deleteService(id: number): Promise<void> {
   const res = await fetch(`/api/service-definitions/${id}`, { method: "DELETE", headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to delete service");
@@ -162,7 +168,7 @@ function AddFieldForm({ serviceId, onAdded }: { serviceId: number; onAdded: () =
   );
 }
 
-// ─── Fields Panel (used in both tabs) ────────────────────────────────────────
+// ─── Fields Panel (used in "Create Service with Table" tab) ──────────────────
 function FieldsPanel({ svc, onDeleteService }: { svc: ServiceDefinition; onDeleteService?: () => void }) {
   const [showAddField, setShowAddField] = useState(false);
   const { toast } = useToast();
@@ -363,27 +369,6 @@ function RecordsPanel({ svc }: { svc: ServiceDefinition }) {
   );
 }
 
-// ─── Access-only panel (no dedicated DB table) ───────────────────────────────
-function AccessOnlyPanel({ svc }: { svc: ServiceDefinition }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center gap-4 p-10">
-      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
-        <CheckSquare className="w-7 h-7 text-blue-500" />
-      </div>
-      <div className="space-y-2 max-w-sm">
-        <p className="font-semibold text-base">{svc.name}</p>
-        <p className="text-sm text-muted-foreground">
-          This service is tracked as an <strong>access toggle</strong> on employee profiles (visible in Add Employee, Bulk Upload, and Reports).
-        </p>
-        <p className="text-sm text-muted-foreground">
-          It does not have a dedicated database table, so records management is not applicable.
-        </p>
-      </div>
-      <Badge variant="outline" className="text-blue-600 border-blue-200">Access-tracked only</Badge>
-    </div>
-  );
-}
-
 // ─── Right panel for "Create Service with Table" tab ─────────────────────────
 function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; onDeleteService?: () => void }) {
   const [activeInner, setActiveInner] = useState<"entries" | "fields">("entries");
@@ -400,6 +385,11 @@ function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; o
           </div>
           {svc.isBuiltIn && <Badge className="bg-slate-100 text-slate-600 border-slate-200 ml-1"><Shield className="w-3 h-3 mr-1" />Built-in</Badge>}
         </div>
+        {!svc.isBuiltIn && onDeleteService && (
+          <Button size="sm" variant="outline" className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={onDeleteService}>
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+          </Button>
+        )}
       </div>
 
       {/* DB info */}
@@ -431,9 +421,7 @@ function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; o
 
       {/* Inner content */}
       <div className="flex-1 overflow-hidden p-5">
-        {!svc.hasTable ? (
-          <AccessOnlyPanel svc={svc} />
-        ) : activeInner === "entries" ? (
+        {activeInner === "entries" ? (
           <RecordsPanel svc={svc} />
         ) : (
           <FieldsPanel svc={svc} onDeleteService={onDeleteService} />
@@ -443,13 +431,20 @@ function TableServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; o
   );
 }
 
-// ─── Right panel for "Create Service" tab ────────────────────────────────────
-function StandaloneServicePanel({ svc, onDeleteService }: { svc: ServiceDefinition; onDeleteService: () => void }) {
+// ─── Right panel for "Create Service" tab (simple: name + edit + delete) ─────
+function StandaloneServicePanel({ svc, onDeleteService, onRename }: {
+  svc: ServiceDefinition;
+  onDeleteService: () => void;
+  onRename: () => void;
+}) {
   return (
     <div className="bg-card rounded-xl border h-full flex flex-col overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center"><Server className="w-5 h-5 text-primary" /></div>
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Server className="w-5 h-5 text-primary" />
+          </div>
           <div>
             <h3 className="font-semibold text-base">{svc.name}</h3>
             <p className="text-xs text-muted-foreground font-mono">{svc.slug}</p>
@@ -457,14 +452,61 @@ function StandaloneServicePanel({ svc, onDeleteService }: { svc: ServiceDefiniti
         </div>
         <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">Standalone</Badge>
       </div>
-      <div className="px-5 py-2.5 border-b bg-muted/10 flex items-center gap-2 text-xs text-muted-foreground">
-        <Server className="w-3.5 h-3.5 text-primary" />
-        <span>Standalone service — no database table</span>
-        <span className="text-border">·</span>
-        <span>{svc.fields.length} fields</span>
+
+      {/* Body */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 p-10 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <CheckSquare className="w-8 h-8 text-primary" />
+        </div>
+        <div className="space-y-2 max-w-sm">
+          <p className="font-semibold text-lg">{svc.name}</p>
+          <p className="text-sm text-muted-foreground">
+            This service is tracked as an <strong>access toggle</strong> on employee profiles. It does not have a dedicated database table.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-blue-600 border-blue-200">Access-tracked only</Badge>
+
+        {/* Action buttons */}
+        <div className="flex gap-3 mt-2">
+          <Button variant="outline" className="gap-2" onClick={onRename}>
+            <Pencil className="w-4 h-4" /> Edit Name
+          </Button>
+          <Button variant="outline" className="gap-2 text-rose-600 border-rose-200 hover:bg-rose-50" onClick={onDeleteService}>
+            <Trash2 className="w-4 h-4" /> Remove Service
+          </Button>
+        </div>
       </div>
-      <div className="flex-1 overflow-hidden p-5">
-        <FieldsPanel svc={svc} onDeleteService={onDeleteService} />
+    </div>
+  );
+}
+
+// ─── Built-in access-only panel ───────────────────────────────────────────────
+function BuiltInAccessPanel({ svc }: { svc: ServiceDefinition }) {
+  return (
+    <div className="bg-card rounded-xl border h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Server className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-base">{svc.name}</h3>
+            <p className="text-xs text-muted-foreground font-mono">{svc.slug}</p>
+          </div>
+        </div>
+        <Badge className="bg-slate-100 text-slate-600 border-slate-200"><Shield className="w-3 h-3 mr-1" />Built-in</Badge>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10 text-center">
+        <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+          <CheckSquare className="w-7 h-7 text-blue-500" />
+        </div>
+        <div className="space-y-2 max-w-sm">
+          <p className="font-semibold text-base">{svc.name}</p>
+          <p className="text-sm text-muted-foreground">
+            This is a built-in service tracked as an <strong>access toggle</strong> on employee profiles. It cannot be removed.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-blue-600 border-blue-200">Access-tracked only</Badge>
       </div>
     </div>
   );
@@ -476,9 +518,21 @@ export default function ServicesConfig() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"standalone" | "with-table">("standalone");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  // Standalone create dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [newSvcName, setNewSvcName] = useState("");
-  const [newSvcFields, setNewSvcFields] = useState<NewField[]>([{ ...EMPTY_FIELD }]);
+
+  // Rename dialog
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameSvc, setRenameSvc] = useState<ServiceDefinition | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  // Table create dialog
+  const [tableCreateOpen, setTableCreateOpen] = useState(false);
+  const [tableNewSvcName, setTableNewSvcName] = useState("");
+  const [tableNewSvcFields, setTableNewSvcFields] = useState<NewField[]>([{ ...EMPTY_FIELD }]);
+
   const [deleteConfirm, setDeleteConfirm] = useState<ServiceDefinition | null>(null);
 
   const { data: services = [], isLoading } = useQuery<ServiceDefinition[]>({
@@ -486,22 +540,41 @@ export default function ServicesConfig() {
     queryFn: fetchServiceDefs,
   });
 
-  // Tab 1: ALL services without a table — user-created standalone + access-only built-ins
+  // Tab 1: ALL services without a table
   const standaloneServices = services.filter(s => !s.hasTable);
-  // Tab 2: ONLY table-backed services — built-ins with DB tables + custom table services
+  // Tab 2: ONLY table-backed services
   const tableServices = services.filter(s => s.hasTable);
 
   const currentList = activeTab === "standalone" ? standaloneServices : tableServices;
   const selectedSvc = services.find(s => s.id === selectedId) || null;
-  const createTable = activeTab === "with-table";
 
-  const createMutation = useMutation({
-    mutationFn: createService,
+  const createStandaloneMutation = useMutation({
+    mutationFn: (name: string) => createService({ name, fields: [], createTable: false }),
     onSuccess: (svc) => {
       qc.invalidateQueries({ queryKey: ["/api/service-definitions"] });
       qc.invalidateQueries({ queryKey: ["/api/config"] });
       toast({ title: "Service created", description: `${svc.name} has been created.` });
-      setCreateOpen(false); setNewSvcName(""); setNewSvcFields([{ ...EMPTY_FIELD }]); setSelectedId(svc.id);
+      setCreateOpen(false); setNewSvcName(""); setSelectedId(svc.id);
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  const createTableMutation = useMutation({
+    mutationFn: (data: { name: string; fields: NewField[] }) => createService({ name: data.name, fields: data.fields, createTable: true }),
+    onSuccess: (svc) => {
+      qc.invalidateQueries({ queryKey: ["/api/service-definitions"] });
+      qc.invalidateQueries({ queryKey: ["/api/config"] });
+      toast({ title: "Service created", description: `${svc.name} has been created and added to the sidebar.` });
+      setTableCreateOpen(false); setTableNewSvcName(""); setTableNewSvcFields([{ ...EMPTY_FIELD }]); setSelectedId(svc.id);
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => updateServiceName(id, name),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/service-definitions"] });
+      toast({ title: "Service renamed" }); setRenameOpen(false); setRenameSvc(null); setRenameValue("");
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -516,13 +589,17 @@ export default function ServicesConfig() {
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
 
-  const handleCreateFieldChange = (idx: number, key: keyof NewField, value: any) =>
-    setNewSvcFields(p => p.map((f, i) => i === idx ? { ...f, [key]: value } : f));
-  const addCreateField = () => setNewSvcFields(p => [...p, { ...EMPTY_FIELD }]);
-  const removeCreateField = (idx: number) => setNewSvcFields(p => p.filter((_, i) => i !== idx));
+  const handleTableFieldChange = (idx: number, key: keyof NewField, value: any) =>
+    setTableNewSvcFields(p => p.map((f, i) => i === idx ? { ...f, [key]: value } : f));
+  const addTableField = () => setTableNewSvcFields(p => [...p, { ...EMPTY_FIELD }]);
+  const removeTableField = (idx: number) => setTableNewSvcFields(p => p.filter((_, i) => i !== idx));
 
   const handleTabChange = (tab: "standalone" | "with-table") => {
     setActiveTab(tab); setSelectedId(null);
+  };
+
+  const openRename = (svc: ServiceDefinition) => {
+    setRenameSvc(svc); setRenameValue(svc.name); setRenameOpen(true);
   };
 
   return (
@@ -535,13 +612,13 @@ export default function ServicesConfig() {
             onClick={() => handleTabChange("standalone")}
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "standalone" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Server className="w-4 h-4 inline mr-2 -mt-0.5" />Create Service
+            <Server className="w-4 h-4 inline mr-2 -mt-0.5" />Create Services
           </button>
           <button
             onClick={() => handleTabChange("with-table")}
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "with-table" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Table2 className="w-4 h-4 inline mr-2 -mt-0.5" />Create Service with Table
+            <Table2 className="w-4 h-4 inline mr-2 -mt-0.5" />Create Services with Table
           </button>
         </div>
 
@@ -552,10 +629,15 @@ export default function ServicesConfig() {
           <div className="w-72 flex-shrink-0 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-sm text-foreground">
-                {activeTab === "standalone" ? "Standalone Services" : "Services"}
+                {activeTab === "standalone" ? "Standalone Services" : "Services with Table"}
               </h3>
               {activeTab === "standalone" && (
                 <Button size="sm" className="h-8 text-xs" onClick={() => setCreateOpen(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> New
+                </Button>
+              )}
+              {activeTab === "with-table" && (
+                <Button size="sm" className="h-8 text-xs" onClick={() => setTableCreateOpen(true)}>
                   <Plus className="w-3.5 h-3.5 mr-1" /> New
                 </Button>
               )}
@@ -566,7 +648,7 @@ export default function ServicesConfig() {
                 <div className="flex items-center justify-center h-24"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
               ) : currentList.length === 0 ? (
                 <div className="text-center py-8 text-sm text-muted-foreground px-3">
-                  {activeTab === "standalone" ? "No standalone services yet. Click 'New' to create one." : "No services available."}
+                  {activeTab === "standalone" ? "No standalone services yet. Click 'New' to create one." : "No table services yet. Click 'New' to create one."}
                 </div>
               ) : currentList.map(svc => (
                 <button
@@ -577,7 +659,6 @@ export default function ServicesConfig() {
                   {activeTab === "with-table" ? <Table2 className="w-4 h-4 flex-shrink-0" /> : <Server className="w-4 h-4 flex-shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{svc.name}</p>
-                    <p className="text-xs text-muted-foreground">{svc.fields.length} fields</p>
                   </div>
                   {svc.isBuiltIn && <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground flex-shrink-0">Built-in</Badge>}
                   <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-opacity ${selectedId === svc.id ? "opacity-100 text-primary" : "opacity-0"}`} />
@@ -592,15 +673,19 @@ export default function ServicesConfig() {
               <div className="flex flex-col items-center justify-center h-full text-center gap-3 bg-card rounded-xl border p-10">
                 {activeTab === "standalone" ? <Server className="w-12 h-12 text-muted-foreground/30" /> : <Table2 className="w-12 h-12 text-muted-foreground/30" />}
                 <p className="text-muted-foreground font-medium">
-                  {activeTab === "standalone" ? "Select a service to manage its fields" : "Select a service to manage its entries and fields"}
+                  {activeTab === "standalone" ? "Select a service to view or manage it" : "Select a service to manage its entries and fields"}
                 </p>
-                {activeTab === "standalone" && <p className="text-xs text-muted-foreground">Or create a new service using the button on the left</p>}
+                <p className="text-xs text-muted-foreground">Or create a new service using the button on the left</p>
               </div>
             ) : activeTab === "standalone" ? (
               selectedSvc.isBuiltIn ? (
-                <AccessOnlyPanel svc={selectedSvc} />
+                <BuiltInAccessPanel svc={selectedSvc} />
               ) : (
-                <StandaloneServicePanel svc={selectedSvc} onDeleteService={() => setDeleteConfirm(selectedSvc)} />
+                <StandaloneServicePanel
+                  svc={selectedSvc}
+                  onDeleteService={() => setDeleteConfirm(selectedSvc)}
+                  onRename={() => openRename(selectedSvc)}
+                />
               )
             ) : (
               <TableServicePanel svc={selectedSvc} onDeleteService={!selectedSvc.isBuiltIn ? () => setDeleteConfirm(selectedSvc) : undefined} />
@@ -609,43 +694,114 @@ export default function ServicesConfig() {
         </div>
       </div>
 
-      {/* Create service dialog (standalone only) */}
-      <Dialog open={createOpen} onOpenChange={v => { if (!v) { setCreateOpen(false); setNewSvcName(""); setNewSvcFields([{ ...EMPTY_FIELD }]); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Create standalone service dialog */}
+      <Dialog open={createOpen} onOpenChange={v => { if (!v) { setCreateOpen(false); setNewSvcName(""); } }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5 text-primary" />
-              {createTable ? "Create Service with Table" : "Create Standalone Service"}
+              Create Service
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              {createTable ? "A new database table will be created with the fields you define." : "Add a tracked service without a database table."}
+              Add a service tracked as an access toggle on employee profiles.
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Service Name *</Label>
+              <Input
+                value={newSvcName}
+                onChange={e => setNewSvcName(e.target.value)}
+                placeholder="e.g. Sophos, Salesforce..."
+                className="h-11"
+                onKeyDown={e => e.key === "Enter" && newSvcName.trim() && createStandaloneMutation.mutate(newSvcName.trim())}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createStandaloneMutation.mutate(newSvcName.trim())}
+              disabled={!newSvcName.trim() || createStandaloneMutation.isPending}
+            >
+              {createStandaloneMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              Create Service
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog open={renameOpen} onOpenChange={v => { if (!v) { setRenameOpen(false); setRenameSvc(null); setRenameValue(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              Edit Service Name
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Service Name *</Label>
+              <Input
+                value={renameValue}
+                onChange={e => setRenameValue(e.target.value)}
+                placeholder="Service name"
+                className="h-11"
+                onKeyDown={e => e.key === "Enter" && renameValue.trim() && renameSvc && renameMutation.mutate({ id: renameSvc.id, name: renameValue.trim() })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => renameSvc && renameMutation.mutate({ id: renameSvc.id, name: renameValue.trim() })}
+              disabled={!renameValue.trim() || renameValue === renameSvc?.name || renameMutation.isPending}
+            >
+              {renameMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create service with table dialog */}
+      <Dialog open={tableCreateOpen} onOpenChange={v => { if (!v) { setTableCreateOpen(false); setTableNewSvcName(""); setTableNewSvcFields([{ ...EMPTY_FIELD }]); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Table2 className="w-5 h-5 text-primary" />
+              Create Service with Table
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              A new database table will be created. The service will automatically appear in the sidebar.
             </p>
           </DialogHeader>
           <div className="space-y-5 py-2">
             <div className="space-y-1.5">
               <Label>Service Name *</Label>
-              <Input value={newSvcName} onChange={e => setNewSvcName(e.target.value)} placeholder="e.g. Sophos, Salesforce..." className="h-11" />
-              {newSvcName && (
+              <Input value={tableNewSvcName} onChange={e => setTableNewSvcName(e.target.value)} placeholder="e.g. Sophos, Salesforce..." className="h-11" />
+              {tableNewSvcName && (
                 <p className="text-xs text-muted-foreground">
-                  Slug: <code className="font-mono bg-muted px-1 rounded">svc_noTable_{newSvcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_")}</code>
+                  Slug: <code className="font-mono bg-muted px-1 rounded">svc_{tableNewSvcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_")}</code>
                 </p>
               )}
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Fields <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={addCreateField}><Plus className="w-3 h-3 mr-1" /> Add Field</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={addTableField}><Plus className="w-3 h-3 mr-1" /> Add Field</Button>
               </div>
               <div className="space-y-3">
-                {newSvcFields.map((field, idx) => (
+                {tableNewSvcFields.map((field, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-start p-3 rounded-xl bg-muted/10 border">
                     <div className="col-span-4 space-y-1">
                       <Label className="text-xs">Label *</Label>
-                      <Input value={field.fieldLabel} onChange={e => handleCreateFieldChange(idx, "fieldLabel", e.target.value)} placeholder="Field label" className="h-9 text-sm" />
+                      <Input value={field.fieldLabel} onChange={e => handleTableFieldChange(idx, "fieldLabel", e.target.value)} placeholder="Field label" className="h-9 text-sm" />
                     </div>
                     <div className="col-span-3 space-y-1">
                       <Label className="text-xs">Type</Label>
-                      <Select value={field.fieldType} onValueChange={v => handleCreateFieldChange(idx, "fieldType", v)}>
+                      <Select value={field.fieldType} onValueChange={v => handleTableFieldChange(idx, "fieldType", v)}>
                         <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>{FIELD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                       </Select>
@@ -653,13 +809,13 @@ export default function ServicesConfig() {
                     <div className="col-span-3 space-y-1">
                       <Label className="text-xs">Required?</Label>
                       <div className="flex items-center gap-2 h-9">
-                        <Switch checked={field.isRequired} onCheckedChange={v => handleCreateFieldChange(idx, "isRequired", v)} />
+                        <Switch checked={field.isRequired} onCheckedChange={v => handleTableFieldChange(idx, "isRequired", v)} />
                         <span className="text-xs">{field.isRequired ? "Yes" : "No"}</span>
                       </div>
                     </div>
                     <div className="col-span-2 space-y-1">
                       <Label className="text-xs opacity-0">Del</Label>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-rose-500 hover:bg-rose-50" onClick={() => removeCreateField(idx)} disabled={newSvcFields.length === 1}><X className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-rose-500 hover:bg-rose-50" onClick={() => removeTableField(idx)} disabled={tableNewSvcFields.length === 1}><X className="w-4 h-4" /></Button>
                     </div>
                     {field.fieldLabel && <div className="col-span-12"><p className="text-xs text-muted-foreground font-mono">DB column: {field.fieldLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_")}</p></div>}
                   </div>
@@ -668,13 +824,13 @@ export default function ServicesConfig() {
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setCreateOpen(false)} className="sm:mr-auto">Cancel</Button>
+            <Button variant="outline" onClick={() => setTableCreateOpen(false)} className="sm:mr-auto">Cancel</Button>
             <Button
-              onClick={() => createMutation.mutate({ name: newSvcName.trim(), fields: newSvcFields.filter(f => f.fieldLabel.trim()), createTable })}
-              disabled={!newSvcName.trim() || createMutation.isPending}
+              onClick={() => createTableMutation.mutate({ name: tableNewSvcName.trim(), fields: tableNewSvcFields.filter(f => f.fieldLabel.trim()) })}
+              disabled={!tableNewSvcName.trim() || createTableMutation.isPending}
             >
-              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-              Create Service
+              {createTableMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Table2 className="w-4 h-4 mr-2" />}
+              Create Service with Table
             </Button>
           </DialogFooter>
         </DialogContent>

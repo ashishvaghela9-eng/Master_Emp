@@ -216,6 +216,28 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.put("/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "name is required" });
+
+    const [def] = await db.select().from(serviceDefinitionsTable).where(eq(serviceDefinitionsTable.id, id));
+    if (!def) return res.status(404).json({ error: "Service not found" });
+    if (def.isBuiltIn) return res.status(400).json({ error: "Cannot rename built-in services" });
+
+    const [updated] = await db.update(serviceDefinitionsTable)
+      .set({ name: name.trim() })
+      .where(eq(serviceDefinitionsTable.id, id))
+      .returning();
+
+    return res.json(updated);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.delete("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
