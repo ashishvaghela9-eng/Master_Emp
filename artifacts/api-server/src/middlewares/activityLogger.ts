@@ -176,17 +176,18 @@ export function activityLogger(req: Request, res: Response, next: NextFunction) 
   const body = req.body || {};
 
   const originalSend = res.send.bind(res);
+  const fullPath = req.originalUrl.split("?")[0];
   res.send = function (responseBody?: any) {
     const result = originalSend(responseBody);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      const { entity, entityId, subEntity } = getEntityFromPath(req.path);
-      const action = getActionLabel(req.method, req.path);
+      const { entity, entityId, subEntity } = getEntityFromPath(fullPath);
+      const action = getActionLabel(req.method, fullPath);
 
       (async () => {
         let module = getModuleName(entity);
 
         if (entity === "services") {
-          const parts = req.path.split("/").filter(Boolean);
+          const parts = fullPath.split("/").filter(Boolean);
           if (parts[0] === "api") parts.shift();
           const slug = parts[1];
           if (slug) {
