@@ -32,19 +32,20 @@ router.get("/stats", async (_req, res) => {
 
     // Access distribution
     const accessKeys = [
-      "zohoEmail", "microsoftEmail", "microsoftOffice", "finfluxBmDashboard",
+      "zohoEmail", "microsoftEmail", "microsoftOffice", "finflux", "bmDashboard",
       "mobiliteField", "mobiliteCredit", "hoDashboard", "lightMoney",
       "zohoProjects", "jira", "bitbucket", "adobeAcrobat", "assetcuez",
-      "exotel", "godaddy", "bluehost", "hostinger", "emailHosting",
+      "exotel", "godaddy", "bluehost", "hostinger",
       "awsConsole", "msg91", "dmsAlfresco",
     ];
     const accessLabels: Record<string, string> = {
       zohoEmail: "Zoho Email", microsoftEmail: "Microsoft Email", microsoftOffice: "MS Office",
-      finfluxBmDashboard: "Finflux BM", mobiliteField: "Mobilite Field", mobiliteCredit: "Mobilite Credit",
+      finflux: "Finflux", bmDashboard: "BM Dashboard",
+      mobiliteField: "Mobilite Field", mobiliteCredit: "Mobilite Credit",
       hoDashboard: "HO Dashboard", lightMoney: "Light Money", zohoProjects: "Zoho Projects",
       jira: "Jira", bitbucket: "Bitbucket", adobeAcrobat: "Adobe Acrobat",
       assetcuez: "AssetCuez", exotel: "Exotel", godaddy: "GoDaddy",
-      bluehost: "Bluehost", hostinger: "Hostinger", emailHosting: "Email Hosting",
+      bluehost: "Bluehost", hostinger: "Hostinger/Email Hosting",
       awsConsole: "AWS Console", msg91: "MSG91", dmsAlfresco: "DMS/Alfresco",
     };
     const accessMap: Record<string, number> = {};

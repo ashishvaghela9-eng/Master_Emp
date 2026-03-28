@@ -99,7 +99,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           </button>
         </div>
 
-        <div className="p-4 flex-1 overflow-y-auto w-[280px] h-[calc(100vh-64px)] pb-24 scrollbar-thin">
+        <div className="p-4 flex-1 overflow-y-auto w-[280px] h-[calc(100vh-64px)] pb-40 scrollbar-thin">
           {/* Main Nav */}
           <div className="mb-4 px-2">
             <p className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mb-3">Management</p>

@@ -108,7 +108,8 @@ const BUILT_IN_SERVICES: {
   { name: "Zoho Email",           slug: "access_zoho_email",           hasTable: false, fields: [] },
   { name: "Microsoft Email",      slug: "access_microsoft_email",      hasTable: false, fields: [] },
   { name: "Microsoft Office",     slug: "access_microsoft_office",     hasTable: false, fields: [] },
-  { name: "Finflux BM Dashboard", slug: "access_finflux_bm_dashboard", hasTable: false, fields: [] },
+  { name: "Finflux",              slug: "access_finflux_bm_dashboard", hasTable: false, fields: [] },
+  { name: "BM Dashboard",         slug: "access_bm_dashboard",         hasTable: false, fields: [] },
   { name: "Mobilite Field",       slug: "access_mobilite_field",       hasTable: false, fields: [] },
   { name: "Mobilite Credit",      slug: "access_mobilite_credit",      hasTable: false, fields: [] },
   { name: "HO Dashboard",         slug: "access_ho_dashboard",         hasTable: false, fields: [] },
@@ -119,8 +120,7 @@ const BUILT_IN_SERVICES: {
   { name: "Exotel",               slug: "access_exotel",               hasTable: false, fields: [] },
   { name: "GoDaddy",              slug: "access_godaddy",              hasTable: false, fields: [] },
   { name: "Bluehost",             slug: "access_bluehost",             hasTable: false, fields: [] },
-  { name: "Hostinger",            slug: "access_hostinger",            hasTable: false, fields: [] },
-  { name: "Email Hosting",        slug: "access_email_hosting",        hasTable: false, fields: [] },
+  { name: "Hostinger/Email Hosting", slug: "access_hostinger",         hasTable: false, fields: [] },
   { name: "AWS Console",          slug: "access_aws_console",          hasTable: false, fields: [] },
   { name: "MSG91",                slug: "access_msg91",                hasTable: false, fields: [] },
   { name: "DMS / Alfresco",       slug: "access_dms_alfresco",        hasTable: false, fields: [] },
@@ -138,8 +138,8 @@ async function seedBuiltIn() {
         await db.insert(serviceFieldsTable).values(svc.fields.map(f => ({ ...f, serviceId: def.id })));
       }
     } else {
-      // Migrate: update hasTable flag if it differs (handles previously seeded records that lacked hasTable=true)
-      if (existing[0].hasTable !== svc.hasTable) {
+      // Migrate: update name or hasTable if they differ
+      if (existing[0].hasTable !== svc.hasTable || existing[0].name !== svc.name) {
         await db.update(serviceDefinitionsTable)
           .set({ hasTable: svc.hasTable, name: svc.name })
           .where(eq(serviceDefinitionsTable.id, existing[0].id));
